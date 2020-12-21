@@ -1,0 +1,21 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+    <Bundle Name="!(loc.BundleName)" Version="!(bind.packageVersion.test.msi)" Manufacturer="Example Corporation" UpgradeCode="047730a5-30fe-4a62-a520-da9381b8226a">
+        <BootstrapperApplication>
+            <BootstrapperApplicationDll SourceFile="fakeba.dll" />
+        </BootstrapperApplication>
+        <Chain>
+            <PackageGroupRef Id="_1"/>
+        </Chain>
+    </Bundle>
+
+    <Fragment>
+        <PackageGroup Id="_1">
+            <MsiPackage SourceFile="test.msi">
+                <MsiProperty Name="TEST" Value="1" />
+            </MsiPackage>
+        </PackageGroup>
+        <Container Id="_1" Type="Detached">
+            <PackageGroupRef Id="_1"/>
+        </Container>
+    </Fragment>
+</Wix>

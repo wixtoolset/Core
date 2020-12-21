@@ -348,5 +348,42 @@ namespace WixToolsetTest.CoreIntegration
                 Assert.InRange(result.ExitCode, 2, Int32.MaxValue);
             }
         }
+
+        [Fact(Skip = "Test demonstrates failure https://github.com/wixtoolset/issues/issues/6298")]
+        public void CanDecompileBundleWithDettachedContainer()
+        {
+            var folder = TestData.Get(@"TestData\BundleWithDetachedContainer");
+
+            using (var fs = new DisposableFileSystem())
+            {
+                var baseFolder = fs.GetFolder();
+                var intermediateFolder = Path.Combine(baseFolder, "obj");
+                var exePath = Path.Combine(baseFolder, @"bin\test.exe");
+                var pdbPath = Path.Combine(baseFolder, @"bin\test.wixpdb");
+                var baFolderPath = Path.Combine(baseFolder, "ba");
+                var extractFolderPath = Path.Combine(baseFolder, "extract1");
+                var extractContainerFolderPath = Path.Combine(baseFolder, "extract2");
+
+                var result = WixRunner.Execute(new[]
+                {
+                    "build",
+                    Path.Combine(folder, "Bundle.wxs"),
+                    "-loc", Path.Combine(folder, "Bundle.en-us.wxl"),
+                    "-bindpath", Path.Combine(folder, "data"),
+                    "-intermediateFolder", intermediateFolder,
+                    "-o", exePath,
+                });
+
+                result.AssertSuccess();
+                Assert.Empty(result.Messages.Where(m => m.Level == MessageLevel.Warning));
+
+                Assert.True(File.Exists(exePath));
+                Assert.True(File.Exists(pdbPath));
+
+                Assert.True(BundleExtractor.ExtractAttachedContainer(null, exePath, extractFolderPath, extractContainerFolderPath));
+
+                //TODO Check that extracted files exist as expected
+            }
+        }
     }
 }
