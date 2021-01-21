@@ -1577,6 +1577,18 @@ namespace WixToolset.Core
                             key = Path.Combine(parentKey, key);
                         }
                         break;
+                        // Issue #4753
+                        // Unlike file paths, registry paths are not allowed to start or end with a backslash.
+                        // Unless run as an administrator (i.e. with elevated privileges), keys that violate
+                        // this rule results in ICE03 compiler errors. (Registry paths are not pre-evaluated
+                        // when running with elevated privileges.) Since many users include trailing backslashes
+                        // in registry paths, we are silently correcting this error here. If there are multiple
+                        // trailing slashes, removing the final one, as done here, will purposely still generate
+                        // the ICE03 error.
+                        if (null != key && key.EndsWith(@"\"))
+                        {
+                            key = key.Remove(key.Length - 1);
+                        }
                     case "Root":
                         if (root.HasValue)
                         {
