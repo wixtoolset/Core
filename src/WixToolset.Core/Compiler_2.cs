@@ -1576,7 +1576,6 @@ namespace WixToolset.Core
                         {
                             key = Path.Combine(parentKey, key);
                         }
-                        break;
                         // Issue #4753
                         // Unlike file paths, registry paths are not allowed to start or end with a backslash.
                         // Unless run as an administrator (i.e. with elevated privileges), keys that violate
@@ -1589,6 +1588,7 @@ namespace WixToolset.Core
                         {
                             key = key.Remove(key.Length - 1);
                         }
+                        break;
                     case "Root":
                         if (root.HasValue)
                         {
