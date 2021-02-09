@@ -654,16 +654,36 @@ namespace WixToolset.Core.WindowsInstaller.Bind
                 }
                 else
                 {
-                    throw new InvalidOperationException(String.Format(CultureInfo.CurrentUICulture,
-                        "Found an action with a non-existent {0} action: {1}.",
-                        (after ? "After" : "Before"), parentActionName));
+                    throw new InvalidOperationException(String.Format(CultureInfo.CurrentUICulture, "Found an action with a non-existent {0} action: {1}.", (after ? "After" : "Before"), parentActionName));
                 }
             }
+            else if (actionSymbol == parentActionSymbol || this.ContainsChildActionSymbol(actionSymbol, parentActionSymbol)) // cycle detected
+            {
+                throw new WixException(ErrorMessages.ActionCircularDependency(actionSymbol.SourceLineNumbers, actionSymbol.SequenceTable.ToString(), actionSymbol.Action, parentActionSymbol.Action));
+            }
+
+            // Add this action to the appropriate list of dependent action symbols.
+            var relativeActions = this.GetRelativeActions(parentActionSymbol);
+            var relatedSymbols = (after ? relativeActions.NextActions : relativeActions.PreviousActions);
+            relatedSymbols.Add(actionSymbol);
 
             return parentActionSymbol;
         }
-    
+
         private bool GetAfter(WixActionSymbol actionSymbol) => (actionSymbol.After != null);
+
+        private bool ContainsChildActionSymbol(WixActionSymbol childSymbol, WixActionSymbol parentSymbol)
+        {
+            var result = false;
+
+            if (this.RelativeActionsForActions.TryGetValue(childSymbol.Id.Id, out var relativeActions))
+            {
+                result = relativeActions.NextActions.Any(a => a.SequenceTable == parentSymbol.SequenceTable && a.Id.Id == parentSymbol.Id.Id) ||
+                     relativeActions.PreviousActions.Any(a => a.SequenceTable == parentSymbol.SequenceTable && a.Id.Id == parentSymbol.Id.Id);
+            }
+
+            return result;
+        }
 
         private RelativeActions GetRelativeActions(WixActionSymbol action)
         {
