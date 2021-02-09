@@ -13,6 +13,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="TestData\CustomAction\CustomActionCycleWithTail.wxs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\WixToolset.Core\WixToolset.Core.csproj" />
     <ProjectReference Include="..\..\WixToolset.Core.Burn\WixToolset.Core.Burn.csproj" />
     <ProjectReference Include="..\..\WixToolset.Core.WindowsInstaller\WixToolset.Core.WindowsInstaller.csproj" />

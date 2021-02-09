@@ -129,6 +129,9 @@ namespace WixToolset.Core.WindowsInstaller.Bind
                 }
             }
 
+            // A dictionary used for detecting cyclic references among action symbols.
+            var firstReference = new Dictionary<WixActionSymbol, WixActionSymbol>();
+            
             // Build up dependency trees of the relatively scheduled actions.
             // Use ToList() to create a copy of the required action symbols so that new symbols can
             // be added while enumerating.
@@ -142,7 +145,7 @@ namespace WixToolset.Core.WindowsInstaller.Bind
                         this.Messaging.Write(ErrorMessages.StandardActionRelativelyScheduledInModule(actionSymbol.SourceLineNumbers, actionSymbol.SequenceTable.ToString(), actionSymbol.Action));
                     }
 
-                    this.SequenceActionSymbol(actionSymbol, requiredActionSymbols);
+                    this.SequenceActionSymbol(actionSymbol, requiredActionSymbols, firstReference);
                 }
                 else if (SectionType.Module == this.Section.Type && 0 < actionSymbol.Sequence && !WindowsInstallerStandard.IsStandardAction(actionSymbol.Action)) // check for custom actions and dialogs that have a sequence number
                 {
@@ -562,64 +565,105 @@ namespace WixToolset.Core.WindowsInstaller.Bind
         }
 
         /// <summary>
-        /// Sequence an action before or after a standard action.
+        /// Sequence an action before or after a standard action and verify that it is not part of
+        /// an action reference cycle.
         /// </summary>
+        /// <para> Use the provided dictionary to note the initial action symbol
+        /// that first led to each action symbol. Any action symbol encountered that has already been
+        /// encountered starting from a different initial action symbol inherits the loop characteristics of that
+        /// initial action symbol, and thus is also not part of a cycle. However, any action symbol
+        /// encountered that has already been encountered starting from the same initial action symbol
+        /// is an indication that the current action symbol is part of a cycle.
+        /// </para>
         /// <param name="actionSymbol">The action symbol to be sequenced.</param>
         /// <param name="requiredActionSymbols">Collection of actions which must be included.</param>
-        private void SequenceActionSymbol(WixActionSymbol actionSymbol, Dictionary<string, WixActionSymbol> requiredActionSymbols)
+        /// <param name="firstReference">The first encountered action symbol that led to each action symbol.</param>
+        private void SequenceActionSymbol(WixActionSymbol actionSymbol,
+            Dictionary<string, WixActionSymbol> requiredActionSymbols,
+            Dictionary<WixActionSymbol, WixActionSymbol> firstReference)
         {
-            var after = false;
+            WixActionSymbol initialParentActionSymbol = null;
+            var previousActionSymbol = actionSymbol;
+            var initialActionSymbol = actionSymbol;
+            var initialAfter = this.GetAfter(actionSymbol);
 
-            if (actionSymbol.After != null)
-            {
-                after = true;
-            }
-            else if (actionSymbol.Before == null)
-            {
-                throw new InvalidOperationException("Found an action with no Sequence, Before, or After column set.");
-            }
+            var firstTime = true;
 
-            var parentActionName = (after ? actionSymbol.After : actionSymbol.Before);
+            do
+            {
+                if (!firstReference.ContainsKey(actionSymbol))
+                {
+                    firstReference[actionSymbol] = initialActionSymbol;
+                }
+                else if (firstReference[actionSymbol] == initialActionSymbol)
+                {
+                    throw new WixException(ErrorMessages.ActionCircularDependency(actionSymbol.SourceLineNumbers,
+                        actionSymbol.SequenceTable.ToString(), actionSymbol.Action, previousActionSymbol.Action));
+                }
+
+                if (null == actionSymbol.Before && null == actionSymbol.After)
+                {
+                    if (firstTime)
+                    {
+                        throw new InvalidOperationException(
+                            "Found an action with no Sequence, Before, or After column set.");
+                    }
+
+                    break;
+                }
+
+                var parentActionSymbol = this.GetParentActionSymbol(actionSymbol, requiredActionSymbols, firstTime);
+
+                if (firstTime)
+                {
+                    initialParentActionSymbol = parentActionSymbol ?? throw new InvalidOperationException(
+                        "Found an action with no Sequence, Before, or After column set.");
+                }
+
+                previousActionSymbol = actionSymbol;
+                actionSymbol = parentActionSymbol;
+                firstTime = false;
+            } while (actionSymbol != null);
+
+            // Add this action to the appropriate list of dependent action symbols.
+            var relativeActions = this.GetRelativeActions(initialParentActionSymbol);
+            var relatedSymbols = (initialAfter ? relativeActions.NextActions : relativeActions.PreviousActions);
+            relatedSymbols.Add(initialActionSymbol);
+        }
+
+        private WixActionSymbol GetParentActionSymbol(WixActionSymbol actionSymbol,
+            Dictionary<string, WixActionSymbol> requiredActionSymbols,
+            bool firstTime)
+        {
+            var after = this.GetAfter(actionSymbol);
+            var parentActionName = after ? actionSymbol.After : actionSymbol.Before;
             var parentActionKey = actionSymbol.SequenceTable.ToString() + "/" + parentActionName;
 
             if (!requiredActionSymbols.TryGetValue(parentActionKey, out var parentActionSymbol))
             {
-                // If the missing parent action is a standard action (with a suggested sequence number), add it.
                 if (WindowsInstallerStandard.TryGetStandardAction(parentActionKey, out parentActionSymbol))
                 {
-                    // Create a clone to avoid modifying the static copy of the object.
-                    // TODO: consider this: parentActionSymbol = parentActionSymbol.Clone();
+                    // If the missing parent action is a standard action (with a suggested sequence number), add it.
+                    if (firstTime)
+                    {
+                        // Create a clone to avoid modifying the static copy of the object.
+                        // TODO: consider this: parentActionSymbol = parentActionSymbol.Clone();
 
-                    requiredActionSymbols.Add(parentActionSymbol.Id.Id, parentActionSymbol);
+                        requiredActionSymbols.Add(parentActionSymbol.Id.Id, parentActionSymbol);
+                    }
                 }
                 else
                 {
-                    throw new InvalidOperationException(String.Format(CultureInfo.CurrentUICulture, "Found an action with a non-existent {0} action: {1}.", (after ? "After" : "Before"), parentActionName));
+                    throw new InvalidOperationException(String.Format(CultureInfo.CurrentUICulture,
+                        "Found an action with a non-existent {0} action: {1}.",
+                        (after ? "After" : "Before"), parentActionName));
                 }
             }
-            else if (actionSymbol == parentActionSymbol || this.ContainsChildActionSymbol(actionSymbol, parentActionSymbol)) // cycle detected
-            {
-                throw new WixException(ErrorMessages.ActionCircularDependency(actionSymbol.SourceLineNumbers, actionSymbol.SequenceTable.ToString(), actionSymbol.Action, parentActionSymbol.Action));
-            }
 
-            // Add this action to the appropriate list of dependent action symbols.
-            var relativeActions = this.GetRelativeActions(parentActionSymbol);
-            var relatedSymbols = (after ? relativeActions.NextActions : relativeActions.PreviousActions);
-            relatedSymbols.Add(actionSymbol);
+            return parentActionSymbol;
         }
-
-        private bool ContainsChildActionSymbol(WixActionSymbol childSymbol, WixActionSymbol parentSymbol)
-        {
-            var result = false;
-
-            if (this.RelativeActionsForActions.TryGetValue(childSymbol.Id.Id, out var relativeActions))
-            {
-                result = relativeActions.NextActions.Any(a => a.SequenceTable == parentSymbol.SequenceTable && a.Id.Id == parentSymbol.Id.Id) ||
-                     relativeActions.PreviousActions.Any(a => a.SequenceTable == parentSymbol.SequenceTable && a.Id.Id == parentSymbol.Id.Id);
-            }
-
-            return result;
-        }
+    
+        private bool GetAfter(WixActionSymbol actionSymbol) => (actionSymbol.After != null);
 
         private RelativeActions GetRelativeActions(WixActionSymbol action)
         {
