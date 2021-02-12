@@ -665,8 +665,6 @@ namespace WixToolset.Core.WindowsInstaller.Bind
     
         private bool GetAfter(WixActionSymbol actionSymbol) => (actionSymbol.After != null);
 
-        private bool GetAfter(WixActionSymbol actionSymbol) => (actionSymbol.After != null);
-
         private RelativeActions GetRelativeActions(WixActionSymbol action)
         {
             if (!this.RelativeActionsForActions.TryGetValue(action.Id.Id, out var relativeActions))
