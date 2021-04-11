@@ -15,7 +15,7 @@ namespace WixToolset.Core.Burn.Bundles
     /// <summary>
     /// Initializes package state from the Msp contents.
     /// </summary>
-    internal class ProcessMspPackageCommand
+    internal class ProcessMspPackageCommand : ProcessPackageCommand
     {
         private const string PatchMetadataQuery = "SELECT `Value` FROM `MsiPatchMetadata` WHERE `Property` = ?";
         private static readonly XmlWriterSettings XmlSettings = new XmlWriterSettings()
@@ -26,20 +26,14 @@ namespace WixToolset.Core.Burn.Bundles
             NewLineHandling = NewLineHandling.Replace,
         };
 
-        public ProcessMspPackageCommand(IMessaging messaging, IntermediateSection section, PackageFacade facade, Dictionary<string, WixBundlePayloadSymbol> payloadSymbols)
+        public ProcessMspPackageCommand(IServiceProvider serviceProvider, IntermediateSection section, PackageFacade facade, Dictionary<string, WixBundlePayloadSymbol> payloadSymbols, Dictionary<string, SourceLineNumber> duplicateCacheIdDetector)
+            : base(serviceProvider, facade, duplicateCacheIdDetector)
         {
-            this.Messaging = messaging;
-
             this.AuthoredPayloads = payloadSymbols;
             this.Section = section;
-            this.Facade = facade;
         }
 
-        public IMessaging Messaging { get; }
-
         public Dictionary<string, WixBundlePayloadSymbol> AuthoredPayloads { private get; set; }
-
-        public PackageFacade Facade { private get; set; }
 
         public IntermediateSection Section { get; }
 
@@ -93,6 +87,8 @@ namespace WixToolset.Core.Burn.Bundles
             {
                 this.Facade.PackageSymbol.CacheId = mspPackage.PatchCode;
             }
+
+            this.CheckForDuplicateCacheIds();
         }
 
         private void ProcessPatchXml(WixBundlePayloadSymbol packagePayload, WixBundleMspPackageSymbol mspPackage, string sourcePath)
