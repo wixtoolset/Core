@@ -10,17 +10,12 @@ namespace WixToolset.Core.Burn.Bundles
     /// <summary>
     /// Processes the Msu packages to add properties and payloads from the Msu packages.
     /// </summary>
-    internal class ProcessMsuPackageCommand
+    internal class ProcessMsuPackageCommand : ProcessPackageCommand
     {
-        public ProcessMsuPackageCommand(PackageFacade facade, Dictionary<string, WixBundlePayloadSymbol> payloadSymbols)
-        {
-            this.AuthoredPayloads = payloadSymbols;
-            this.Facade = facade;
-        }
+        public ProcessMsuPackageCommand(IServiceProvider serviceProvider, PackageFacade facade, Dictionary<string, WixBundlePayloadSymbol> payloadSymbols, Dictionary<string, SourceLineNumber> duplicateCacheIdDetector)
+            : base(serviceProvider, facade, duplicateCacheIdDetector) => this.AuthoredPayloads = payloadSymbols;
 
         public Dictionary<string, WixBundlePayloadSymbol> AuthoredPayloads { private get; set; }
-
-        public PackageFacade Facade { private get; set; }
 
         public void Execute()
         {
@@ -30,6 +25,8 @@ namespace WixToolset.Core.Burn.Bundles
             {
                 this.Facade.PackageSymbol.CacheId = packagePayload.Hash;
             }
+
+            this.CheckForDuplicateCacheIds();
 
             this.Facade.PackageSymbol.PerMachine = YesNoDefaultType.Yes; // MSUs are always per-machine.
         }
