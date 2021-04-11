@@ -10,17 +10,12 @@ namespace WixToolset.Core.Burn.Bundles
     /// <summary>
     /// Processes the Msu packages to add properties and payloads from the Msu packages.
     /// </summary>
-    internal class ProcessMsuPackageCommand
+    internal class ProcessMsuPackageCommand : ProcessPackageCommand
     {
-        public ProcessMsuPackageCommand(PackageFacade facade, Dictionary<string, WixBundlePayloadSymbol> payloadSymbols)
-        {
-            this.AuthoredPayloads = payloadSymbols;
-            this.Facade = facade;
-        }
+        public ProcessMsuPackageCommand(IServiceProvider serviceProvider, PackageFacade facade, Dictionary<string, WixBundlePayloadSymbol> payloadSymbols)
+            : base(serviceProvider, facade) => this.AuthoredPayloads = payloadSymbols;
 
         public Dictionary<string, WixBundlePayloadSymbol> AuthoredPayloads { private get; set; }
-
-        public PackageFacade Facade { private get; set; }
 
         public void Execute()
         {

@@ -199,7 +199,7 @@ namespace WixToolset.Core.Burn
                 {
                 case WixBundlePackageType.Exe:
                 {
-                    var command = new ProcessExePackageCommand(facade, payloadSymbols);
+                    var command = new ProcessExePackageCommand(this.ServiceProvider, facade, payloadSymbols);
                     command.Execute();
                 }
                 break;
@@ -224,14 +224,14 @@ namespace WixToolset.Core.Burn
 
                 case WixBundlePackageType.Msp:
                 {
-                    var command = new ProcessMspPackageCommand(this.Messaging, section, facade, payloadSymbols);
+                    var command = new ProcessMspPackageCommand(this.ServiceProvider, section, facade, payloadSymbols);
                     command.Execute();
                 }
                 break;
 
                 case WixBundlePackageType.Msu:
                 {
-                    var command = new ProcessMsuPackageCommand(facade, payloadSymbols);
+                    var command = new ProcessMsuPackageCommand(this.ServiceProvider, facade, payloadSymbols);
                     command.Execute();
                 }
                 break;
@@ -241,6 +241,12 @@ namespace WixToolset.Core.Burn
                 {
                     BindBundleCommand.PopulatePackageVariableCache(facade.PackageSymbol, variableCache);
                 }
+            }
+
+            if (null != variableCache)
+            {
+                var command = new GatherWixVariablesCommand(this.Messaging, this.Output, variableCache);
+                command.Execute();
             }
 
             if (this.Messaging.EncounteredError)
@@ -396,6 +402,26 @@ namespace WixToolset.Core.Burn
             foreach (var extension in this.BackendExtensions)
             {
                 extension.SymbolsFinalized(section);
+            }
+
+            if (this.Messaging.EncounteredError)
+            {
+                return;
+            }
+
+            var duplicateCacheIdDetector = new Dictionary<string, SourceLineNumber>(StringComparer.InvariantCulture);
+
+            foreach (var facade in facades.Values)
+            {
+                if (duplicateCacheIdDetector.TryGetValue(facade.PackageSymbol.CacheId, out var sourceLineNumber))
+                {
+                    this.Messaging.Write(BurnBackendErrors.DuplicateCacheIds1(sourceLineNumber, facade.PackageSymbol.CacheId));
+                    this.Messaging.Write(BurnBackendErrors.DuplicateCacheIds2(facade.PackageSymbol.SourceLineNumbers, facade.PackageSymbol.CacheId));
+                }
+                else
+                {
+                    duplicateCacheIdDetector.Add(facade.PackageSymbol.CacheId, facade.PackageSymbol.SourceLineNumbers);
+                }
             }
 
             if (this.Messaging.EncounteredError)

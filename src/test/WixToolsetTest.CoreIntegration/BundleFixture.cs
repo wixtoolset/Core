@@ -280,7 +280,7 @@ namespace WixToolsetTest.CoreIntegration
             }
         }
 
-        [Fact(Skip = "https://github.com/wixtoolset/issues/issues/4628")]
+        [Fact]
         public void CantBuildWithDuplicateCacheIds()
         {
             var folder = TestData.Get(@"TestData");
@@ -294,15 +294,14 @@ namespace WixToolsetTest.CoreIntegration
                 var result = WixRunner.Execute(new[]
                 {
                     "build",
-                    Path.Combine(folder, "BadInput", "DuplicateCacheIds.wxs"),
                     Path.Combine(folder, "BundleWithPackageGroupRef", "Bundle.wxs"),
-                    "-bindpath", Path.Combine(folder, "SimpleBundle", "data"),
-                    "-bindpath", Path.Combine(folder, ".Data"),
+                    Path.Combine(folder, "BadInput", "DuplicateCacheIds.wxs"),
+                    "-bindpath", Path.Combine(folder, @"BundleWithPackageGroupRef\data"),
                     "-intermediateFolder", intermediateFolder,
                     "-o", exePath,
                 });
 
-                Assert.InRange(result.ExitCode, 2, Int32.MaxValue);
+                Assert.Equal(8001, result.ExitCode);
             }
         }
 

@@ -18,24 +18,21 @@ namespace WixToolset.Core.Burn.Bundles
     /// <summary>
     /// Initializes package state from the MSI contents.
     /// </summary>
-    internal class ProcessMsiPackageCommand
+    internal class ProcessMsiPackageCommand : ProcessPackageCommand
     {
         private const string PropertySqlQuery = "SELECT `Value` FROM `Property` WHERE `Property` = ?";
 
         public ProcessMsiPackageCommand(IServiceProvider serviceProvider, IEnumerable<IBurnBackendBinderExtension> backendExtensions, IntermediateSection section, PackageFacade facade, Dictionary<string, WixBundlePayloadSymbol> packagePayloads)
+        : base(serviceProvider, facade)
         {
-            this.Messaging = serviceProvider.GetService<IMessaging>();
-            this.BackendHelper = serviceProvider.GetService<IBackendHelper>();
-            this.PathResolver = serviceProvider.GetService<IPathResolver>();
+            this.BackendHelper = this.ServiceProvider.GetService<IBackendHelper>();
+            this.PathResolver = this.ServiceProvider.GetService<IPathResolver>();
 
             this.BackendExtensions = backendExtensions;
 
             this.PackagePayloads = packagePayloads;
             this.Section = section;
-            this.Facade = facade;
         }
-
-        private IMessaging Messaging { get; }
 
         private IBackendHelper BackendHelper { get; }
 
@@ -44,8 +41,6 @@ namespace WixToolset.Core.Burn.Bundles
         private IEnumerable<IBurnBackendBinderExtension> BackendExtensions { get; }
 
         private Dictionary<string, WixBundlePayloadSymbol> PackagePayloads { get; }
-
-        private PackageFacade Facade { get; }
 
         private IntermediateSection Section { get; }
 
