@@ -191,6 +191,8 @@ namespace WixToolset.Core.Burn
                 return;
             }
 
+            var duplicateCacheIdDetector = new Dictionary<string, SourceLineNumber>(StringComparer.InvariantCulture);
+
             // Process each package facade. Note this is likely to add payloads and other symbols so
             // note that any indexes created above may be out of date now.
             foreach (var facade in facades.Values)
@@ -199,7 +201,7 @@ namespace WixToolset.Core.Burn
                 {
                 case WixBundlePackageType.Exe:
                 {
-                    var command = new ProcessExePackageCommand(facade, payloadSymbols);
+                    var command = new ProcessExePackageCommand(this.Messaging, facade, payloadSymbols, duplicateCacheIdDetector);
                     command.Execute();
                 }
                 break;
@@ -242,6 +244,8 @@ namespace WixToolset.Core.Burn
                     BindBundleCommand.PopulatePackageVariableCache(facade.PackageSymbol, variableCache);
                 }
             }
+
+            duplicateCacheIdDetector = null;
 
             if (this.Messaging.EncounteredError)
             {
