@@ -122,7 +122,7 @@ namespace WixToolset.Core.Bind
             {
                 if (parsed.Namespace == "bind")
                 {
-                    var key = String.Concat(parsed.Name, ".", parsed.Scope);
+                    var key = null == parsed.Scope ? parsed.Name : $"{parsed.Name}.{parsed.Scope}";
 
                     if (!this.VariableCache.TryGetValue(key, out var resolvedValue))
                     {
@@ -149,7 +149,7 @@ namespace WixToolset.Core.Bind
                     else
                     {
                         this.Messaging.Write(ErrorMessages.UnresolvedBindReference(sourceLineNumbers, value));
-                        break;
+                        start = parsed.Index + parsed.Length;
                     }
                 }
                 else

@@ -2,8 +2,10 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
     <Fragment>
         <PackageGroup Id="BundlePackages">
-            <ExePackage Id="Manual1" SourceFile="burn.exe" Name="manual1\burn.exe" CacheId="Manual" />
-            <ExePackage Id="Manual2" SourceFile="burn.exe" Name="manual2\burn.exe" CacheId="Manual" />
+            <ExePackage Id="Manual1" SourceFile="test.msi" Name="manual1\test.msi" DetectCondition="anything" CacheId="!(bind.WixVariable1)" />
+            <ExePackage Id="Manual2" SourceFile="test.msi" Name="manual2\test.msi" DetectCondition="anything" CacheId="!(bind.WixVariable2)" />
         </PackageGroup>
+        <WixVariable Id="WixVariable1" Value="The same old thing" />
+        <WixVariable Id="WixVariable2" Value="The same old thing" />
     </Fragment>
 </Wix>

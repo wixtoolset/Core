@@ -367,6 +367,17 @@ namespace WixToolset.Core.Burn
             // Resolve any delayed fields before generating the manifest.
             if (this.DelayedFields.Any())
             {
+                if (null != variableCache)
+                {
+                    var command = new GatherWixVariablesCommand(this.Messaging, this.Output, variableCache);
+                    command.Execute();
+                }
+
+                if (this.Messaging.EncounteredError)
+                {
+                    return;
+                }
+
                 this.BackendHelper.ResolveDelayedFields(this.DelayedFields, variableCache);
             }
 
@@ -396,6 +407,26 @@ namespace WixToolset.Core.Burn
             foreach (var extension in this.BackendExtensions)
             {
                 extension.SymbolsFinalized(section);
+            }
+
+            if (this.Messaging.EncounteredError)
+            {
+                return;
+            }
+
+            var duplicateCacheIdDetector = new Dictionary<string, SourceLineNumber>(StringComparer.InvariantCulture);
+
+            foreach (var facade in facades.Values)
+            {
+                if (duplicateCacheIdDetector.TryGetValue(facade.PackageSymbol.CacheId, out var sourceLineNumber))
+                {
+                    this.Messaging.Write(BurnBackendErrors.DuplicateCacheIds1(sourceLineNumber, facade.PackageSymbol.CacheId));
+                    this.Messaging.Write(BurnBackendErrors.DuplicateCacheIds2(facade.PackageSymbol.SourceLineNumbers, facade.PackageSymbol.CacheId));
+                }
+                else
+                {
+                    duplicateCacheIdDetector.Add(facade.PackageSymbol.CacheId, facade.PackageSymbol.SourceLineNumbers);
+                }
             }
 
             if (this.Messaging.EncounteredError)
